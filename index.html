@@ -83,9 +83,12 @@
     <audio id="correctCurl1" src="audio/correct_feedback_1.mp3"></audio>
     <audio id="correctCurl2" src="audio/correct_feedback_2.mp3"></audio>
     <audio id="correctCurl3" src="audio/correct_feedback_3.mp3"></audio>
-    <audio id="incorrectCurl1" src="audio/incorrect_feedback_1.mp3"></audio>
-    <audio id="incorrectCurl2" src="audio/incorrect_feedback_2.mp3"></audio>
-    <audio id="incorrectCurl3" src="audio/incorrect_feedback_3.mp3"></audio>
+    <audio id="incorrectCurl1" src="audio/incorrect_feedback_bend_back_1.mp3"></audio>
+    <audio id="incorrectCurl2" src="audio/incorrect_feedback_bend_back_2.mp3"></audio>
+    <audio id="incorrectCurl3" src="audio/incorrect_feedback_bend_back_3.mp3"></audio>
+    <audio id="incorrectCurl4" src="audio/incorrect_feedback_lean_forward_1.mp3"></audio>
+    <audio id="incorrectCurl5" src="audio/incorrect_feedback_lean_forward_2.mp3"></audio>
+    <audio id="incorrectCurl6" src="audio/incorrect_feedback_lean_forward_3.mp3"></audio>
 
 
     <script type="text/javascript">
@@ -179,18 +182,32 @@
 
         function playFeedback(className) {
             isPlaying = true;
-
+        
+            // Stop any previously playing audio
+            const currentlyPlaying = document.querySelector('audio[playing="true"]');
+            if (currentlyPlaying) {
+                currentlyPlaying.pause();
+                currentlyPlaying.currentTime = 0;
+                currentlyPlaying.removeAttribute("playing");
+            }
+        
             let audioIds;
             if (className === "Correct Curl") {
                 audioIds = ["correctCurl1", "correctCurl2", "correctCurl3"];
-            } else if (className === "Incorrect Curl") {
+            } else if (className === "Lean") {
+                audioIds = ["incorrectCurl4", "incorrectCurl5", "incorrectCurl6"];
+
+            } else if (className === "Bend") {
                 audioIds = ["incorrectCurl1", "incorrectCurl2", "incorrectCurl3"];
             }
-
+        
             if (audioIds) {
                 const audioId = audioIds[Math.floor(Math.random() * audioIds.length)];
                 const audioElement = document.getElementById(audioId);
-
+        
+                // Mark the audio as currently playing
+                audioElement.setAttribute("playing", "true");
+        
                 audioElement.play()
                     .then(() => {
                         audioElement.onended = () => {
@@ -206,6 +223,7 @@
                     });
             }
         }
+        
 
         function drawPose(pose, className) {
             if (webcam.canvas) {
