@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pose Estimation with Feedback</title>
+    <title>Pose Estimation with Mobile Support</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
@@ -53,8 +53,8 @@
     <div class="text-2xl font-semibold text-gray-700 mb-4">Pose Estimation</div>
     
     <div id="loading" class="mt-4 text-gray-700 hidden">Loading...</div>
-    <div class="mt-6">
-        <canvas id="canvas" class="border border-gray-400 rounded"></canvas>
+    <div class="mt-6 w-full flex justify-center">
+        <canvas id="canvas" class="border border-gray-400 rounded max-w-full"></canvas>
     </div>
     <div id="label-container" class="mt-4 text-gray-700"></div>
 
@@ -79,6 +79,11 @@
         </label>
     </div>
 
+    <!-- Button to Switch Camera -->
+    <button id="toggleCamera" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded">
+        Switch Camera
+    </button>
+
     <!-- Audio elements for feedback -->
     <audio id="correctCurl1" src="audio/correct_feedback_1.mp3"></audio>
     <audio id="correctCurl2" src="audio/correct_feedback_2.mp3"></audio>
@@ -90,14 +95,14 @@
     <audio id="incorrectCurl5" src="audio/incorrect_feedback_lean_forward_2.mp3"></audio>
     <audio id="incorrectCurl6" src="audio/incorrect_feedback_lean_forward_3.mp3"></audio>
 
-
     <script type="text/javascript">
         const URL = "./my_model/";
         let model, webcam, ctx, labelContainer, maxPredictions;
         let isWebcamActive = false;
-        let isPlaying = false;  
-        let lastPlayedLabel = "";  
-        let audioEnabled = true; // Track if audio feedback is enabled
+        let isPlaying = false;
+        let lastPlayedLabel = "";
+        let audioEnabled = true;
+        let facingMode = "user"; // Default to front camera
 
         async function init() {
             try {
@@ -108,14 +113,22 @@
                 maxPredictions = model.getTotalClasses();
 
                 const size = 400;
-                const flip = true;
-                webcam = new tmPose.Webcam(size, size, flip);
-                await webcam.setup();
+                const constraints = {
+                    video: {
+                        facingMode: facingMode,
+                        width: { ideal: size },
+                        height: { ideal: size },
+                    },
+                };
+
+                webcam = new tmPose.Webcam(size, size, true);
+                await webcam.setup(constraints);
                 await webcam.play();
                 window.requestAnimationFrame(loop);
 
                 const canvas = document.getElementById("canvas");
-                canvas.width = size; canvas.height = size;
+                canvas.width = size;
+                canvas.height = size;
                 ctx = canvas.getContext("2d");
                 labelContainer = document.getElementById("label-container");
                 labelContainer.innerHTML = "";
@@ -145,7 +158,23 @@
         }
 
         document.getElementById("audioToggle").addEventListener("change", function() {
-            audioEnabled = this.checked; // Update audioEnabled state
+            audioEnabled = this.checked;
+        });
+
+        document.getElementById("toggleCamera").addEventListener("click", async () => {
+            facingMode = facingMode === "user" ? "environment" : "user";
+            if (webcam) await webcam.stop();
+
+            const constraints = {
+                video: {
+                    facingMode: facingMode,
+                    width: { ideal: 400 },
+                    height: { ideal: 400 },
+                },
+            };
+
+            await webcam.setup(constraints);
+            await webcam.play();
         });
 
         async function loop() {
@@ -171,9 +200,8 @@
                 labelContainer.childNodes[i].innerHTML = classPrediction;
             }
 
-            // Only play new audio if the detected label has changed, and the audio is enabled
             if (audioEnabled && className !== lastPlayedLabel && !isPlaying) {
-                lastPlayedLabel = className;  // Update last played label
+                lastPlayedLabel = className;
                 playFeedback(className);
             }
 
@@ -182,38 +210,34 @@
 
         function playFeedback(className) {
             isPlaying = true;
-        
-            // Stop any previously playing audio
+
             const currentlyPlaying = document.querySelector('audio[playing="true"]');
             if (currentlyPlaying) {
                 currentlyPlaying.pause();
                 currentlyPlaying.currentTime = 0;
                 currentlyPlaying.removeAttribute("playing");
             }
-        
+
             let audioIds;
             if (className === "Correct Curl") {
                 audioIds = ["correctCurl1", "correctCurl2", "correctCurl3"];
             } else if (className === "Lean") {
                 audioIds = ["incorrectCurl4", "incorrectCurl5", "incorrectCurl6"];
-
             } else if (className === "Bend") {
                 audioIds = ["incorrectCurl1", "incorrectCurl2", "incorrectCurl3"];
             }
-        
+
             if (audioIds) {
                 const audioId = audioIds[Math.floor(Math.random() * audioIds.length)];
                 const audioElement = document.getElementById(audioId);
-        
-                // Mark the audio as currently playing
                 audioElement.setAttribute("playing", "true");
-        
+
                 audioElement.play()
                     .then(() => {
                         audioElement.onended = () => {
                             isPlaying = false;
                             setTimeout(() => {
-                                lastPlayedLabel = "";  // Allow a new feedback after 5 seconds
+                                lastPlayedLabel = "";
                             }, 5000);
                         };
                     })
@@ -223,7 +247,6 @@
                     });
             }
         }
-        
 
         function drawPose(pose, className) {
             if (webcam.canvas) {
